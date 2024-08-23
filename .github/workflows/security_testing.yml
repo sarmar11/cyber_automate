@@ -1,0 +1,106 @@
+# This workflow will install Python dependencies, run tests and lint with a variety of Python versions
+# For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
+
+name: Python package
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    name: Build and Test
+
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: "3.10"
+    - name: Unlock secrets
+      uses: sliteteam/github-action-git-crypt-unlock@1.2.0
+      env:
+        GIT_CRYPT_KEY: ${{ secrets.GIT_CRYPT_KEY }}
+    - name: Install toolium
+      run: |
+        pip install -r requirements.txt
+    - name: Start selenoid
+      uses: Xotabu4/selenoid-github-action@v2
+    - name: Run acceptance tests
+      run: |
+        behave test --junit --junit-directory test/output -t "~@security"
+    - name: Upload Acceptance Test Results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: acceptance-tests-results
+        path: test/output/*.xml
+        retention-days: 1
+    - name: Run security tests
+      run: |
+        behave test --junit --junit-directory test/output -t "@security"
+    - name: Upload Security Test Results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: security-tests-results
+        path: test/output/*.xml
+        retention-days: 1
+
+  publish-acceptance-test-results:
+    name: "Publish Acceptance Tests Results"
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: read
+      checks: write
+      pull-requests: write
+    if: success() || failure()
+    strategy:
+      fail-fast: false
+
+    steps:
+      - name: Download Acceptance test Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: acceptance-tests-results
+          path: acceptance-tests-results
+
+      - name: Publish Acceptance Test Results
+        uses: EnricoMi/publish-unit-test-result-action@v1
+        with:
+          files: acceptance-tests-results/*.xml
+          comment_title: "Acceptance Tests Results Python"
+
+  publish-security-test-results:
+    name: "Publish Security Tests Results"
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: read
+      checks: write
+      pull-requests: write
+    if: success() || failure()
+    strategy:
+      fail-fast: false
+
+    steps:
+      - name: Download Security test Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: security-tests-results
+          path: security-tests-results
+
+      - name: Publish Security Test Results
+        uses: EnricoMi/publish-unit-test-result-action@v1
+        with:
+          files: security-tests-results/*.xml
+          comment_title: "Acceptance Tests Results Python"
