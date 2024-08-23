@@ -1,0 +1,8 @@
+{
+    "cucumberautocomplete.steps": [
+        "*/steps/*.py"
+    ],
+    "cucumberautocomplete.syncfeatures": "*/features/*.feature",
+    "cucumberautocomplete.strictGherkinCompletion": true,
+    "cucumberautocomplete.gherkinDefinitionPart": "@(given|when|then|step|behave_step)\\(",
+}
